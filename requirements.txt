@@ -1,0 +1,6 @@
+opencv-python
+numpy
+tflite_runtime
+pyttsx3
+picamera
+RPi.GPIO-Emulator
