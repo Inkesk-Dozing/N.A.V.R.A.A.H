@@ -1,74 +1,71 @@
-# N.A.V.R.A.A.H: Navigation Assistant for Visually Restricted and Aided Humans
+# N.A.V.R.A.A.H 🕶️🔊
+**Navigation Assistant for Visually Restricted And Aided Humans**
 
-[cite_start]N.A.V.R.A.A.H is a wearable intelligent navigation assistant designed as a clip-on device (AI pin form factor) that continuously observes the environment to help users move safely and confidently[cite: 1, 6]. [cite_start]It is designed to enhance awareness and independence rather than replace existing aids like the white cane[cite: 8].
-
----
-
-## 1. System Architecture
-[cite_start]The device operates using a three-layer processing flow to ensure real-time feedback[cite: 10, 11]:
-
-### **Input Layer**
-* [cite_start]**Camera**: Captures live video frames for visual recognition[cite: 10].
-* [cite_start]**Sensors**: Ultrasonic or Time-of-Flight (ToF) sensors measure precise distances to obstacles[cite: 10, 13].
-
-### **Processing Layer**
-* [cite_start]**Main Brain**: Raspberry Pi Zero 2 W running Linux[cite: 10, 13].
-* [cite_start]**Computer Vision**: OpenCV processes images, while TensorFlow Lite runs object detection models[cite: 10, 17].
-* [cite_start]**Logic**: Combines AI context with sensor data to make movement decisions[cite: 10, 20].
-
-### **Output Layer**
-* [cite_start]**Audio**: Spoken instructions via speaker or earphones[cite: 10, 13].
-* [cite_start]**Haptics**: A vibration motor provides tactile alerts; intensity increases as objects get closer[cite: 10, 15].
+### 🌟 Project Vision
+[cite_start]N.A.V.R.A.A.H is an IoT-based intelligent assistive system designed to solve the "last-meter" navigation challenges faced by visually impaired individuals[cite: 60, 104]. [cite_start]Unlike traditional white canes, this wearable provides environmental context, object identification, and proactive directional guidance[cite: 103, 105].
 
 ---
 
-## 2. Hardware Components
-| Component | Description & Purpose |
-| :--- | :--- |
-| **Raspberry Pi Zero 2 W** | [cite_start]Executes Python code and AI models in a compact form factor[cite: 13]. |
-| **Camera Module** | [cite_start]Provides visual feed for identifying objects like chairs, people, or walls[cite: 10, 13]. |
-| **Distance Sensor** | [cite_start]HC-SR04 (Ultrasonic) or VL53L0X (ToF) for fast obstacle detection[cite: 13, 14]. |
-| **Vibration Motor** | [cite_start]Provides immediate tactile warnings in loud environments[cite: 15]. |
-| **Power System** | [cite_start]3.7V Li-ion battery with a TP4056 charging/protection module[cite: 14, 15]. |
-| **Audio Driver** | [cite_start]Amplifies signals for clear voice-based navigation[cite: 14]. |
+## 🎯 The Scope & Need
+### Why N.A.V.R.A.A.H?
+* [cite_start]**Problem:** Conventional aids are reactive and provide no information about *what* an obstacle is (e.g., a chair vs. a person)[cite: 103, 115].
+* [cite_start]**Solution:** An affordable, portable device that uses AI and sensors to give users real-time situational awareness without needing the internet[cite: 111, 117].
+* [cite_start]**Goal:** Enhance user independence and safety in both familiar and dynamic environments[cite: 112].
 
-
-
----
-
-## 3. Software Stack
-* [cite_start]**Operating System**: Raspberry Pi OS[cite: 17].
-* [cite_start]**Language**: Python[cite: 17].
-* [cite_start]**AI Model**: Pre-trained lightweight models (e.g., MobileNet SSD) for object labeling[cite: 17].
-* [cite_start]**Text-to-Speech**: Offline tools like `pyttsx3` or `eSpeak` to ensure functionality without internet[cite: 8, 17].
+### Core Functionality
+- [cite_start]**Real-time Object Detection:** Identifies people, stairs, and furniture[cite: 121, 143].
+- [cite_start]**Distance Measurement:** High-precision proximity sensing via Ultrasonic/ToF sensors[cite: 135, 144].
+- [cite_start]**Dual-Mode Feedback:** Spoken instructions for context and haptic (vibration) alerts for immediate danger[cite: 126, 131].
+- [cite_start]**Offline Reliability:** All processing occurs locally on the Raspberry Pi Zero 2 W[cite: 106, 130].
 
 ---
 
-## 4. Operational Logic & User Experience
-[cite_start]The system follows a continuous sensing loop (10–20 times per second)[cite: 19]:
-1. [cite_start]**Initialize**: Check hardware and load AI models[cite: 19].
-2. [cite_start]**Detect**: Identify objects and calculate their distance[cite: 19].
-3. **Decide**: 
-    * [cite_start]If distance < 70 cm: Trigger danger alert[cite: 19].
-    * [cite_start]If object is centered: Say "Stop"[cite: 19].
-    * [cite_start]If object is on left: Say "Move slightly right"[cite: 10, 19].
-4. [cite_start]**Feedback**: Deliver short, meaningful voice messages and vibrations[cite: 30, 31].
+## 🛠️ Technical Specifications
 
+### Hardware List (Procurement Status: In Progress)
+* [cite_start]**Compute:** Raspberry Pi Zero 2 W [cite: 135]
+* [cite_start]**Vision:** RPi Camera Module [cite: 135]
+- [cite_start]**Sensing:** HC-SR04 Ultrasonic Sensor or VL53L0X ToF [cite: 135]
+- [cite_start]**Alerts:** Vibration Motor + Audio Amplifier/Earphones [cite: 135]
+- [cite_start]**Power:** 3.7V Li-ion Battery with TP4056 Protection Module [cite: 135]
 
-
----
-
-## 5. Implementation Roadmap
-* [cite_start]**Phase 1 (Week 1-2)**: Pi setup, camera testing, and audio output[cite: 45].
-* [cite_start]**Phase 2 (Week 3-4)**: Distance sensor integration and vibration alerts[cite: 45].
-* [cite_start]**Phase 3 (Week 5-6)**: TensorFlow Lite object detection implementation[cite: 45].
-* [cite_start]**Phase 4 (Week 7-8)**: Fusion of detection and distance for smart guidance[cite: 45].
-* [cite_start]**Phase 5 (Week 9+)**: Caretaker-assisted milestone navigation (Phase 2)[cite: 23, 45].
+### Software Stack
+- [cite_start]**OS:** Raspberry Pi OS [cite: 140]
+- [cite_start]**Logic:** Python 3.x [cite: 140]
+- [cite_start]**Vision/AI:** OpenCV & TensorFlow Lite [cite: 140]
+- [cite_start]**Audio:** Offline Text-to-Speech (TTS) [cite: 140]
 
 ---
 
-## 6. Safety and Limitations
-* [cite_start]**Safety**: Always test with sighted volunteers first; do not store user images to respect privacy[cite: 33].
-* [cite_start]**Speed**: The Raspberry Pi Zero has hardware-limited AI inference speeds[cite: 35].
-* [cite_start]**Environment**: Accuracy may drop in low-light conditions[cite: 35].
-* [cite_start]**Ethics**: The device is a supplement to, not a replacement for, the white cane[cite: 33].
+## 💻 Primary Implementation (`main.py`)
+
+```python
+# Simplified Logic for Team-A Prototype
+import cv2
+import pyttsx3
+import RPi.GPIO as GPIO
+from tflite_runtime.interpreter import Interpreter
+
+# Initialize GPIO (Assigned to Rishita)
+GPIO.setmode(GPIO.BCM)
+TRIG, ECHO, MOTOR = 23, 24, 18
+GPIO.setup([TRIG, MOTOR], GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+
+# Initialize Audio (Assigned to Ishan)
+engine = pyttsx3.init()
+
+# ML Model Loading (Assigned to Harsh)
+interpreter = Interpreter(model_path="models/detect.tflite")
+interpreter.allocate_tensors()
+
+try:
+    cap = cv2.VideoCapture(0) # Assigned to Manas
+    while True:
+        ret, frame = cap.read()
+        # Logic: Combine Sensor Distance + AI Detection here
+        # If distance < threshold: Trigger Vibration + Voice Alert
+        pass
+finally:
+    GPIO.cleanup()
+```

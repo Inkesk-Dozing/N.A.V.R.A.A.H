@@ -1,6 +1,7 @@
 opencv-python
 numpy
-tflite_runtime
 pyttsx3
-picamera
-RPi.GPIO-Emulator
+# tflite-runtime # Use this on RPi
+tensorflow-intel; platform_system == "Windows"
+RPi.GPIO; platform_system == "Linux"
+picamera; platform_system == "Linux"
