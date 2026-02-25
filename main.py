@@ -24,25 +24,25 @@ def main():
         while True:
             # 1. Distance Check
             distance = sensor.read()
-            logger.info(f"Distance: {distance} cm")
+            # Only log/alert distance if mock alerts are enabled OR real sensor is present
+            if not config.TEST_MODE or config.ENABLE_MOCK_ALERTS:
+                logger.info(f"Distance: {distance} cm")
+                if distance < config.DANGER_DISTANCE:
+                    logger.warning("!!! DANGER: OBSTACLE CLOSE !!!")
+                    feedback.alert(config.MSG_DANGER, vibrate=True)
+                elif distance < config.WARNING_DISTANCE:
+                    feedback.alert(config.MSG_OBSTACLE_AHEAD)
+                else:
+                    feedback.stop()
             
-            # 2. Logic & Alerts
-            if distance < config.DANGER_DISTANCE:
-                logger.warning("!!! DANGER: OBSTACLE CLOSE !!!")
-                feedback.alert(config.MSG_DANGER, vibrate=True)
-            elif distance < config.WARNING_DISTANCE:
-                logger.info("Warning: Obstacle approaching")
-                feedback.alert(config.MSG_OBSTACLE_AHEAD)
-            else:
-                feedback.stop()
-            
-            # 3. Vision Check (Periodic)
+            # 2. Vision Check (Real-time Camera)
             frame = vision.get_frame()
-            objects = vision.detect(frame)
-            if objects:
-                obj_msg = f"Detected: {', '.join(objects)}"
-                logger.info(obj_msg)
-                feedback.alert(obj_msg)
+            if frame is not None:
+                objects = vision.detect(frame)
+                if objects:
+                    obj_msg = f"In front: {', '.join(objects)}"
+                    logger.info(obj_msg)
+                    feedback.alert(obj_msg)
             
             time.sleep(config.LOOP_DELAY)
             
@@ -50,7 +50,7 @@ def main():
         logger.info("Shutting down...")
     finally:
         feedback.stop()
-        # On RPi we would do GPIO.cleanup() here if we imported it
+        vision.release()
         try:
             import RPi.GPIO as GPIO
             GPIO.cleanup()

@@ -8,7 +8,9 @@ import platform
 
 # Detect environment
 IS_WINDOWS = platform.system() == "Windows"
-TEST_MODE = IS_WINDOWS  # Default to Test Mode on Windows
+TEST_MODE = False  # Toggle this to False to enable real hardware access
+ENABLE_REAL_CAMERA = True  # Use the laptop camera
+ENABLE_MOCK_ALERTS = True # Keep distance/mock alerts active for testing
 
 # =============================================================================
 # GPIO Pin Configuration (BCM)
@@ -31,7 +33,10 @@ SAFE_DISTANCE = 150           # Safe zone
 CAMERA_RESOLUTION = (640, 480)
 CAMERA_FRAMERATE = 30
 MODEL_PATH = os.path.join("models", "detect.tflite")
-LABELS_PATH = os.path.join("models", "labels.txt")
+LABELS_PATH = os.path.join("models", "labels_oiv7.txt")
+CAFFE_PROTOTXT = os.path.join("models", "deploy.prototxt")
+CAFFE_MODEL = os.path.join("models", "mobilenet_ssd.caffemodel")
+YOLO_MODEL = os.path.join("models", "yolov8n-oiv7.onnx")
 CONFIDENCE_THRESHOLD = 0.5
 
 # =============================================================================
