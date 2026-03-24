@@ -11,6 +11,7 @@ IS_WINDOWS = platform.system() == "Windows"
 TEST_MODE = False  # Toggle this to False to enable real hardware access
 ENABLE_REAL_CAMERA = True  # Use the laptop camera
 ENABLE_MOCK_ALERTS = True # Keep distance/mock alerts active for testing
+DEBUG_VISION = True       # Show bounding boxes on screen for mentors
 
 # =============================================================================
 # GPIO Pin Configuration (BCM)

@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import os
+import time
+import collections
 import config
 
 # Try to import TFLite runtime, fallback to tensorflow if needed
@@ -19,6 +21,30 @@ class VisionSystem:
         self.interpreter = None
         self.labels = []
         self.cap = None
+        self.last_boxes = [] # Store boxes for debug visualization
+
+        # Accessibility Priorities (Ordered by importance for a blind user)
+        self.ACCESSIBILITY_PRIORITIES = {
+            "stairs": 10, "traffic light": 10, "stop sign": 10, "vehicle": 9,
+            "door": 8, "window": 8,
+            "person": 7, "man": 7, "woman": 7,
+            "watch": 6, "mobile phone": 6, "coin": 6, "backpack": 5
+        }
+        
+        # Label Mapping (Scientific -> Natural)
+        self.LABEL_MAP = {
+            "human face": "person", "human body": "person", 
+            "human head": "person", "man": "person", "woman": "person",
+            "mobile phone": "phone", "bill": "money", "coin": "money",
+            "land vehicle": "vehicle", "stairs": "stairs", "door": "door"
+        }
+        
+        # Scene Memory (Object -> Last timestamp announced)
+        self.scene_memory = {}
+        self.COOLDOWN = 5.0 # Seconds before repeating an object
+        
+        # Temporal Smoothing (Consistency Buffer)
+        self.detection_history = collections.deque(maxlen=5) 
         
         # Load Hair Cascade for fallback (Face Detection)
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -74,9 +100,11 @@ class VisionSystem:
         if mock_objects:
             return mock_objects
         
-        if frame is None: return []
-        
+        if frame is None:
+            return []
+            
         results = []
+        self.last_boxes = [] # Clear previous debug boxes
 
         # 1. Try TFLite Model
         if self.interpreter is not None:
@@ -92,14 +120,17 @@ class VisionSystem:
 
             for i in range(len(scores)):
                 if scores[i] > config.CONFIDENCE_THRESHOLD:
-                    label = self.labels[int(classes[i])] if self.labels else f"id_{int(classes[i])}"
-                    results.append(label)
+                    label_raw = self.labels[int(classes[i])] if self.labels else f"id_{int(classes[i])}"
+                    label = self.LABEL_MAP.get(label_raw.lower(), label_raw)
+                    # For TFLite default to center position if no bbox
+                    results.append((label, 0.5))
         
         # 2. Try YOLO Model (COCO/OpenImages)
         elif self.yolo_net is not None:
             # YOLOv8 expects 640x640, YOLOv3-tiny 416x416
             is_v8 = "v8" in config.YOLO_MODEL.lower()
             size = (640, 640) if is_v8 else (416, 416)
+            
             # --- Better Preprocessing: Letterboxing to maintain Aspect Ratio ---
             (h, w) = frame.shape[:2]
             max_side = max(h, w)
@@ -120,11 +151,12 @@ class VisionSystem:
                 elif len(out.shape) == 4:
                     out = out.reshape(-1, out.shape[-1])
                 
-                # Fast NumPy filtering
+                    # Fast NumPy filtering
                 if out.shape[1] > 4:
                     scores = out[:, 4:]
                     confidences = np.max(scores, axis=1)
-                    threshold = 0.35 if is_v8 else config.CONFIDENCE_THRESHOLD
+                    # Lower threshold for OIV7 to ensure rich environment detection
+                    threshold = 0.20 if is_v8 else config.CONFIDENCE_THRESHOLD
                     
                     mask = confidences > threshold
                     valid_indices = np.where(mask)[0]
@@ -133,7 +165,6 @@ class VisionSystem:
                         boxes = []
                         confs = []
                         class_ids = []
-                        # Scale boxes back to original coordinate system (using padded max_side)
                         scale = max_side
                         
                         for idx in valid_indices:
@@ -154,8 +185,21 @@ class VisionSystem:
                         indices = cv2.dnn.NMSBoxes(boxes, confs, threshold, 0.45)
                         if len(indices) > 0:
                             for i in indices.flatten():
-                                label = self.labels[class_ids[i]]
-                                results.append(label)
+                                label_raw = self.labels[class_ids[i]]
+                                label = self.LABEL_MAP.get(label_raw.lower(), label_raw)
+                                
+                                
+                                # Store for debugging
+                                if config.DEBUG_VISION:
+                                    self.last_boxes.append({
+                                        'box': boxes[i],
+                                        'label': f"{label} ({int(confs[i]*100)}%)",
+                                        'color': (0, 255, 0) # Green
+                                    })
+                                
+                                # Store for Spatial Logic: (Name, X-Center)
+                                cx_normalized = (boxes[i][0] + boxes[i][2]/2) / scale
+                                results.append((label, cx_normalized))
                 else:
                     # Fallback for other formats
                     for detection in out:
@@ -174,16 +218,77 @@ class VisionSystem:
                 if confidence > config.CONFIDENCE_THRESHOLD:
                     idx = int(detections[0, 0, i, 1])
                     if idx < len(self.caffe_labels):
-                        results.append(self.caffe_labels[idx])
+                        label_raw = self.caffe_labels[idx]
+                        label = self.LABEL_MAP.get(label_raw.lower(), label_raw)
+                        # Default to center position
+                        results.append((label, 0.5))
         
         # 4. Fallback: Face Detection (Haar Cascade)
         # This ensures the camera "sees" things even without the AI models
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-        if len(faces) > 0:
-            results.append("person")
+        for (x, y, w, h) in faces:
+            cx_normalized = (x + w/2) / frame.shape[1]
+            results.append(("person", cx_normalized))
             
-        return list(set(results))
+        # Temporal Smoothing: Only objects seen in required frames are "Stable"
+        self.detection_history.append(results)
+        
+        # Count frames where object appeared (not total bounding boxes)
+        counts = collections.Counter()
+        for frame_res in self.detection_history:
+            unique_objs_in_frame = set([item[0] for item in frame_res])
+            counts.update(unique_objs_in_frame)
+        
+        stable_results = []
+        # We need to keep the position of the latest detection for stable objects
+        latest_positions = {item[0]: item[1] for item in results}
+        
+        # In test mode, we want instant feedback on single frames
+        required_frames = 1 if config.TEST_MODE else min(3, len(self.detection_history))
+        
+        for obj_name, count in counts.items():
+            if count >= required_frames and obj_name in latest_positions:
+                # 1. Apply Directional Awareness
+                cx = latest_positions[obj_name]
+                if cx < 0.33:
+                    pos_text = "on your left"
+                elif cx > 0.66:
+                    pos_text = "on your right"
+                else:
+                    pos_text = "directly ahead"
+                    
+                full_label = f"{obj_name} {pos_text}"
+                stable_results.append((obj_name, full_label))
+
+        # 2. Apply Scene Memory (Filtering on the full label to allow position changes)
+        now = time.time()
+        filtered_objs = []
+        for base_obj, full_label in stable_results:
+            last_seen = self.scene_memory.get(full_label, 0)
+            if now - last_seen > self.COOLDOWN:
+                filtered_objs.append((base_obj, full_label))
+                self.scene_memory[full_label] = now
+        
+        # 3. Sort based on priority of the base object name
+        filtered_objs.sort(key=lambda x: (self.ACCESSIBILITY_PRIORITIES.get(x[0].lower(), 0), x[1]), reverse=True)
+            
+        return [item[1] for item in filtered_objs]
+
+    def show_frame(self, frame):
+        """Draws stored debug boxes and shows the window if DEBUG_VISION is enabled."""
+        if not config.DEBUG_VISION or frame is None:
+            return
+            
+        debug_frame = frame.copy()
+        for item in self.last_boxes:
+            x, y, w, h = item['box']
+            cv2.rectangle(debug_frame, (x, y), (x + w, y + h), item['color'], 2)
+            cv2.putText(debug_frame, item['label'], (x, y - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, item['color'], 2)
+        
+        cv2.imshow("N.A.V.R.A.A.H - Debug Vision", debug_frame)
+        cv2.waitKey(1)
 
     def release(self):
         if self.cap:

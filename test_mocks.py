@@ -23,22 +23,18 @@ class TestMocks(unittest.TestCase):
         objs = self.vision.detect(None)
         self.assertIsInstance(objs, list)
 
-    def test_mouse_recognition(self):
-        # Verify that we can explicitly mock a 'Computer mouse' detection
-        print("\n[MOCK TEST] Simulating detection: Computer mouse")
-        objs = self.vision.detect(None, mock_objects=["Computer mouse"])
-        self.assertIn("Computer mouse", objs)
-
-    def test_phone_recognition(self):
-        # Verify that we can explicitly mock a 'Mobile phone' detection
-        print("\n[MOCK TEST] Simulating detection: Mobile phone")
-        objs = self.vision.detect(None, mock_objects=["Mobile phone"])
-        self.assertIn("Mobile phone", objs)
-
-    def test_watch_recognition(self):
-        # Verify that we can explicitly mock a 'Watch' detection
-        print("\n[MOCK TEST] Simulating detection: Watch")
-        objs = self.vision.detect(None, mock_objects=["Watch"])
+    def test_complex_scene_recognition(self):
+        # Verify that the system can handle complex, multi-object mock inputs
+        # simulating a real-world scenario (e.g., Man, Clothing, Watch, Mobile phone)
+        # Note: The new VisionSystem applies label mapping, so 'Man' -> 'person'
+        print("\n[MOCK TEST] Simulating complex scene: Man, Clothing, Watch, Mobile phone")
+        # In current logic, mock_objects bypasses the pipeline and returns the list directly.
+        # To test the pipeline, we need to pass these through the mapping if desired, but 
+        # since detect() just returns mock_objects early, we just verify the pass-through works.
+        complex_scene = ["Man", "Clothing", "Watch", "Mobile phone"]
+        objs = self.vision.detect(None, mock_objects=complex_scene)
+        self.assertEqual(len(objs), 4)
+        self.assertIn("Man", objs)
         self.assertIn("Watch", objs)
 
     def test_live_camera_vision(self):

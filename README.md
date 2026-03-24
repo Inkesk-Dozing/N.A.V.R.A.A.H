@@ -18,14 +18,20 @@ N.A.V.R.A.A.H is an intelligent assistive navigation system designed to enhance 
 | **Ishan Rawat** | Audio output and alert logic |
 | **Krishyangi Dixit** | Testing, documentation, and presentation |
 
+## 📚 Documentation & Research
+For an in-depth understanding of the system, please refer to the following reports in the `docs/` folder:
+- [**Beginner-Friendly Code Explanation**](docs/Code-Explanation.md): A simplified, non-technical overview of how the sensory hardware and priority software work together to solve real-world problems.
+- [**Academic Research Paper**](docs/Research-Paper/NAVRAAH_Research_Paper.md): A formal IEEE-format paper detailing the edge computational models, spatial awareness algorithms, and offline feasibility.
+- [**Technical Deep Dive**](docs/Technical_Deep_Dive.md): A comprehensive guide to the AI, Computer Vision, and Machine Learning concepts used in this project.
+- [**Final Project Status**](docs/Final_Project_Status.md): A summary of the major upgrades and current capabilities.
+
 ## ✨ Features
 
-- **Object Detection**: Identifies common objects such as people, chairs, walls, and stairs using specific ML models.
-- **Obstacle Avoidance**: Detects obstacles and measures their distance to the user.
-- **Audio Guidance**: Provides real-time spoken navigation instructions (e.g., "Turn left", "Obstacle ahead").
-- **Haptic Feedback**: Generates vibration alerts for immediate danger or proximity warnings.
-- **Offline Functionality**: Designed to work entirely offline, ensuring reliability without internet access.
-- **Compact Design**: A wearable system built on the Raspberry Pi Zero 2 W platform.
+- **Advanced Object Detection**: Identifies **600+ objects** (Stairs, Doors, Traffic Lights, Watches, etc.) using a modernized **YOLOv8-OIV7** engine.
+- **Priority Alerts**: Intelligent logic that prioritizes safety-critical items (like stairs) in audio announcements.
+- **Obstacle Avoidance**: Ultrasonic monitoring for precise distance measurements.
+- **Audio & Haptic Guidance**: Real-time spoken alerts and vibration warnings for immediate danger.
+- **Optimized for Windows**: Enhanced with Non-Maximum Suppression (NMS) and Letterboxing for high-stability detection.
 
 ## �️ Hardware Components
 

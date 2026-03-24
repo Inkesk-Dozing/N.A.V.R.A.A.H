@@ -1,0 +1,27 @@
+..E..
+======================================================================
+ERROR: test_live_camera_vision (test_mocks.TestMocks.test_live_camera_vision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\USER\Desktop\Extras\N.A.V.R.A.A.H\test_mocks.py", line 49, in test_live_camera_vision
+    objs = self.vision.detect(frame)
+  File "C:\Users\USER\Desktop\Extras\N.A.V.R.A.A.H\hardware\vision.py", line 248, in detect
+    if cx < 0.33:
+       ^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+----------------------------------------------------------------------
+Ran 5 tests in 4.874s
+
+FAILED (errors=1)
+Loaded YOLO model from models\yolov8n-oiv7.onnx
+
+[MOCK TEST] Simulating complex scene: Man, Clothing, Watch, Mobile phone
+Loaded YOLO model from models\yolov8n-oiv7.onnx
+[AUDIO QUEUED] Test message
+[HAPTIC ALERT] Vibrating...
+Loaded YOLO model from models\yolov8n-oiv7.onnx
+
+[LIVE TEST] Capturing frame from camera...
+Loaded YOLO model from models\yolov8n-oiv7.onnx
+Loaded YOLO model from models\yolov8n-oiv7.onnx

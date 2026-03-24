@@ -22,8 +22,9 @@ def main():
     
     try:
         while True:
-            # 1. Distance Check
-            distance = sensor.read()
+            try:
+                # 1. Distance Check
+                distance = sensor.read()
             # Only log/alert distance if mock alerts are enabled OR real sensor is present
             if not config.TEST_MODE or config.ENABLE_MOCK_ALERTS:
                 logger.info(f"Distance: {distance} cm")
@@ -40,19 +41,27 @@ def main():
             if frame is not None:
                 objects = vision.detect(frame)
                 if objects:
-                    obj_msg = f"In front: {', '.join(objects)}"
-                    logger.info(obj_msg)
-                    feedback.alert(obj_msg)
+                    # Pass the list for natural sentence joining in FeedbackSystem
+                    feedback.alert(objects)
+                    logger.info(f"Detections: {objects}")
+                
+                # Show debug frame if enabled
+                vision.show_frame(frame)
             
             time.sleep(config.LOOP_DELAY)
             
+        except Exception as e:
+            logger.error(f"Unexpected error in main loop: {e}")
+            time.sleep(1) # Prevent tight error loops
+
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
-        feedback.stop()
+        feedback.shutdown()
         vision.release()
         try:
             import RPi.GPIO as GPIO
+            GPIO.setwarnings(False)
             GPIO.cleanup()
         except:
             pass
