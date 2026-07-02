@@ -24,27 +24,94 @@ class VisionSystem:
         self.last_boxes = [] # Store boxes for debug visualization
 
         # Accessibility Priorities (Ordered by importance for a blind user)
+        # Higher number = announced first. 0 = still announced, just lower priority.
         self.ACCESSIBILITY_PRIORITIES = {
-            "stairs": 10, "traffic light": 10, "stop sign": 10, "vehicle": 9,
-            "door": 8, "window": 8,
+            # Critical navigation hazards — always speak first
+            "stairs": 10, "traffic light": 10, "stop sign": 10, "wall": 9,
+            "door": 9, "window": 9, "pillar": 9, "column": 9, "fence": 9,
+            # Vehicles & people
+            "vehicle": 8, "car": 8, "motorcycle": 8, "bicycle": 8, "bus": 8, "truck": 8,
             "person": 7, "man": 7, "woman": 7,
-            "watch": 6, "mobile phone": 6, "coin": 6, "backpack": 5
+            # Wearable clothing & accessories (important for recognising who/what is near)
+            "clothing": 6, "jacket": 6, "shirt": 6, "trousers": 6, "dress": 6,
+            "hat": 5, "glasses": 5, "sunglasses": 5, "shoe": 5, "boot": 5,
+            "tie": 4, "glove": 4, "scarf": 4, "belt": 4,
+            # Common indoor furniture & surfaces
+            "desk": 6, "table": 6, "chair": 6, "couch": 6, "sofa": 6, "bed": 6,
+            "coffee table": 6, "stool": 5, "shelf": 5, "bookcase": 5,
+            # Tech & everyday items
+            "laptop": 6, "monitor": 6, "phone": 6, "mobile phone": 6, "tablet": 5,
+            "keyboard": 5, "mouse": 5, "television": 5, "printer": 4,
+            "headphones": 4, "camera": 4, "remote control": 4,
+            # Drinkware & food
+            "mug": 4, "cup": 4, "bottle": 4, "bowl": 3, "plate": 3,
+            # Office/study items
+            "book": 4, "pen": 3, "whiteboard": 4,
+            # Personal items
+            "backpack": 5, "handbag": 5, "watch": 5,
+            "money": 4, "coin": 4,
+            # Appliances
+            "refrigerator": 4, "microwave oven": 4, "oven": 4, "sink": 4,
+        }
+
+        # How many of the last 5 frames an object must appear in to be 'stable'
+        # Large static surfaces need fewer confirmations; small items need more
+        self.STABILITY_REQUIREMENTS = {
+            # Environmental surfaces — always present, confirm quickly
+            "wall": 2, "stairs": 2, "door": 2, "window": 2, "pillar": 2,
+            "fence": 2, "floor": 2, "ceiling": 2,
+            # People & clothing — confirm with 2 frames
+            "person": 2, "man": 2, "woman": 2,
+            "clothing": 2, "jacket": 2, "shirt": 2, "trousers": 2, "dress": 2,
+            # Small items — require 3 frames to avoid false positives
+            "glasses": 3, "sunglasses": 3, "coin": 3, "money": 3, "watch": 3,
+            # Default for everything else: 3
         }
         
-        # Label Mapping (Scientific -> Natural)
+        # Label Mapping: OIV7 raw label -> clean natural-language name
         self.LABEL_MAP = {
-            "human face": "person", "human body": "person", 
+            # People
+            "human face": "person", "human body": "person",
             "human head": "person", "man": "person", "woman": "person",
-            "mobile phone": "phone", "bill": "money", "coin": "money",
-            "land vehicle": "vehicle", "stairs": "stairs", "door": "door"
+            "boy": "person", "girl": "person",
+            # Clothing & wearables — keep distinct so user knows what they see
+            "top, t-shirt, sweatshirt": "clothing", "dress": "dress",
+            "shorts": "clothing", "skirt": "clothing", "swimwear": "clothing",
+            "footwear": "shoe", "boot": "boot", "high heels": "shoe",
+            "sunglasses": "sunglasses", "glasses": "glasses",
+            "hat": "hat", "fedora": "hat", "baseball cap": "hat",
+            "jacket": "jacket", "coat": "jacket",
+            "trousers": "trousers", "jeans": "trousers",
+            "tie": "tie", "scarf": "scarf", "glove": "glove", "belt": "belt",
+            # Solid surfaces / structural elements
+            "wall": "wall", "pillar": "pillar", "column": "pillar",
+            "fence": "fence", "door": "door", "window": "window",
+            # Tech devices
+            "mobile phone": "phone", "corded phone": "phone", "telephone": "phone",
+            "computer mouse": "mouse", "computer keyboard": "keyboard",
+            "computer monitor": "monitor", "tablet computer": "tablet",
+            # Furniture
+            "kitchen & dining room table": "table", "coffee table": "table",
+            "couch": "sofa", "sofa bed": "sofa", "studio couch": "sofa",
+            # Currency
+            "bill": "money", "coin": "money",
+            # Vehicles
+            "land vehicle": "vehicle",
         }
         
         # Scene Memory (Object -> Last timestamp announced)
         self.scene_memory = {}
-        self.COOLDOWN = 5.0 # Seconds before repeating an object
+        self.COOLDOWN = 5.0  # Default cooldown in seconds
+        # Environmental objects are announced less often; clothing more often
+        self.COOLDOWN_MAP = {
+            "wall": 15.0, "floor": 20.0, "ceiling": 20.0, "pillar": 10.0,
+            "stairs": 8.0, "door": 8.0, "window": 8.0,
+            "person": 5.0, "glasses": 5.0, "sunglasses": 5.0,
+            "clothing": 5.0, "jacket": 5.0, "shirt": 5.0,
+        }
         
-        # Temporal Smoothing (Consistency Buffer)
-        self.detection_history = collections.deque(maxlen=5) 
+        # Temporal Smoothing (Consistency Buffer — last 5 frames)
+        self.detection_history = collections.deque(maxlen=5)
         
         # Load Hair Cascade for fallback (Face Detection)
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -155,8 +222,10 @@ class VisionSystem:
                 if out.shape[1] > 4:
                     scores = out[:, 4:]
                     confidences = np.max(scores, axis=1)
-                    # Lower threshold for OIV7 to ensure rich environment detection
-                    threshold = 0.20 if is_v8 else config.CONFIDENCE_THRESHOLD
+                    # 0.28 is the sweet-spot for YOLOv8-OIV7 on a laptop camera:
+                    # — high enough to block pure noise, low enough to catch walls,
+                    #   clothing, glasses, and environmental surfaces reliably.
+                    threshold = 0.28 if is_v8 else config.CONFIDENCE_THRESHOLD
                     
                     mask = confidences > threshold
                     valid_indices = np.where(mask)[0]
@@ -223,13 +292,15 @@ class VisionSystem:
                         # Default to center position
                         results.append((label, 0.5))
         
-        # 4. Fallback: Face Detection (Haar Cascade)
-        # This ensures the camera "sees" things even without the AI models
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-        for (x, y, w, h) in faces:
-            cx_normalized = (x + w/2) / frame.shape[1]
-            results.append(("person", cx_normalized))
+        # 4. Haar Cascade: Supplement YOLO — catches faces YOLO OIV7 may miss.
+        # Run alongside YOLO (not instead of it). Only add if person not already found.
+        existing_labels = {r[0].lower() for r in results}
+        if "person" not in existing_labels:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(60, 60))
+            for (x, y, w, h) in faces:
+                cx_normalized = (x + w / 2) / frame.shape[1]
+                results.append(("person", cx_normalized))
             
         # Temporal Smoothing: Only objects seen in required frames are "Stable"
         self.detection_history.append(results)
@@ -241,15 +312,22 @@ class VisionSystem:
             counts.update(unique_objs_in_frame)
         
         stable_results = []
-        # We need to keep the position of the latest detection for stable objects
+        # Keep the most recent spatial position for each detected object
         latest_positions = {item[0]: item[1] for item in results}
         
-        # In test mode, we want instant feedback on single frames
-        required_frames = 1 if config.TEST_MODE else min(3, len(self.detection_history))
-        
         for obj_name, count in counts.items():
-            if count >= required_frames and obj_name in latest_positions:
-                # 1. Apply Directional Awareness
+            if obj_name not in latest_positions:
+                continue
+            # Decide how many of the last 5 frames we need to see it in
+            if config.TEST_MODE:
+                # In test mode: instant confirmation (1 frame)
+                required = 1
+            else:
+                required = self.STABILITY_REQUIREMENTS.get(obj_name.lower(), 3)
+                required = min(required, len(self.detection_history))
+            
+            if count >= required:
+                # Directional awareness: divide frame into left / ahead / right
                 cx = latest_positions[obj_name]
                 if cx < 0.33:
                     pos_text = "on your left"
@@ -257,22 +335,24 @@ class VisionSystem:
                     pos_text = "on your right"
                 else:
                     pos_text = "directly ahead"
-                    
                 full_label = f"{obj_name} {pos_text}"
                 stable_results.append((obj_name, full_label))
 
-        # 2. Apply Scene Memory (Filtering on the full label to allow position changes)
+        # 2. Apply per-object cooldown via Scene Memory
         now = time.time()
         filtered_objs = []
         for base_obj, full_label in stable_results:
+            cooldown = self.COOLDOWN_MAP.get(base_obj.lower(), self.COOLDOWN)
             last_seen = self.scene_memory.get(full_label, 0)
-            if now - last_seen > self.COOLDOWN:
+            if now - last_seen > cooldown:
                 filtered_objs.append((base_obj, full_label))
                 self.scene_memory[full_label] = now
         
-        # 3. Sort based on priority of the base object name
-        filtered_objs.sort(key=lambda x: (self.ACCESSIBILITY_PRIORITIES.get(x[0].lower(), 0), x[1]), reverse=True)
-            
+        # 3. Sort by accessibility priority (highest first)
+        filtered_objs.sort(
+            key=lambda x: (self.ACCESSIBILITY_PRIORITIES.get(x[0].lower(), 1), x[1]),
+            reverse=True
+        )
         return [item[1] for item in filtered_objs]
 
     def show_frame(self, frame):

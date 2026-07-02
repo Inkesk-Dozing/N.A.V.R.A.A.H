@@ -1,0 +1,26 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large models (downloaded via script)
+models/
+*.onnx
+*.caffemodel
+*.tflite
+*.prototxt
+
+# Test output and error logs
+test_out.txt
+test_out_new.txt
+err.txt

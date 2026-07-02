@@ -66,6 +66,7 @@ class FeedbackSystem(BaseFeedback):
             except queue.Full:
                 try:
                     self.speech_queue.get_nowait() # Remove old stale message
+                    self.speech_queue.task_done()  # Mark it as done since we dropped it
                 except queue.Empty:
                     pass
                 try:
@@ -80,6 +81,10 @@ class FeedbackSystem(BaseFeedback):
                 GPIO.output(self.vibe_pin, True)
                 GPIO.output(self.buzzer_pin, True)
 
+    def wait_for_speech(self):
+        """Blocks until all queued speech messages have been processed."""
+        self.speech_queue.join()
+
     def stop(self):
         """Standard stop for haptics."""
         if not config.TEST_MODE and GPIO:
@@ -90,8 +95,11 @@ class FeedbackSystem(BaseFeedback):
         """Stops the speech thread and releases resources."""
         self.stop()
         self.stop_requested = True
-        # Put an empty task to unblock the queue.get()
-        self.speech_queue.put(None)
+        # Put an empty task to unblock the queue.get(), but don't block if full
+        try:
+            self.speech_queue.put_nowait(None)
+        except queue.Full:
+            pass
         if hasattr(self, 'worker_thread'):
             self.worker_thread.join(timeout=1.0)
         print("Feedback system shutdown complete.")
